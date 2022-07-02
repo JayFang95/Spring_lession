@@ -1,0 +1,347 @@
+springboot
+1. 依赖管理和自动配置
+    spring-boot-starter-parent
+    spring-boot-dependencies
+    常用jar包管理，可以修改默认的版本号
+
+    自动配置了tomcat
+    自动配置了springMVC
+        引入springMVC的全套组件
+        自动配置好常用组件（功能）
+    自动配置好web的常用功能， 如：字符编码问题
+        springboot帮我们配置了所有web开发的常见场景
+    默认的包结构
+        主程序所在及其子包下的包都可以被扫描
+        也可以重新手动修改包扫描路径
+        @SpringBootApplication(scanBasePackages = {"com.jay"})
+        或者@ComponentScan()指定
+    各种配置都已经设置好了默认值
+        默认配置最终都会映射到MultipartProperties
+        配置文件的属性最终会绑定到该类上，类在项目启动时已经创建好了
+    按需加载所有的默认配置项 （按需加载）
+        引入相应的starter，才会自动配置
+        spring boot的所有配置都在spring-boot-autoconfigure包里面
+
+
+2.容器功能
+    2.1 添加组件
+    @Configuration（@proxyBeanMethods）
+        full和lite模式
+        默认proxyBeanMethod值为true，是full模式
+        配置类组件之间有依赖关系时，方法调用得到之前的实例组件，使用full模式
+        配置类组件之间没有依赖关系时用lite模式减少容器启动过程，减少判断
+    @Component @Bean @Controller @Service @Repository
+    @ComponentScan @Import
+        @import({User.class, Student.class}) 通过无参构造方法向容器中添加指定类的对象
+    @Conditional 条件装配
+
+    2.2 原生配置文件引入
+    @importResource
+
+    2.3 属性值绑定
+    如何使用Java读取到properties中的属性，并把它封装到指定的JavaBean中
+    @ConfigurationProperties(prefix="") （只有容器中的组件才可以使用属性绑定功能）+ @Component
+    @EnableConfigurationProperties(Car.class) + @ConfigurationProperties(prefix="")
+
+    2.4 自动装配原理简介
+    @SpringBootConfiguration 表明当前类是一个配置类
+    @ComponentScan 标注需要扫描的包路径
+    @EnableAutoConfiguration
+        @AutoConfigurationPackages
+            @Import(Register.class) 将指定的包路径下的组件导入容器中
+        @Import(AutoConfigurationImportSelector.class)
+            给容器中批量导入组件
+            默认扫描我们类中所有的META-INF/spring.factories位置文件
+            除此之外还会根据按需加载同时控制是否加载指定文件的类到容器中
+
+
+3.Web开发
+    SpringMVC的自动配置
+    1.访问静态资源
+        静态资源目录： 类路径下
+            static public resources META_INF
+            访问： 根路径/ + 静态资源名
+            原理：静态映射/**，请求进来时先找controller看可不可以处理，不可以处理的所有处理都找静态资源处理器，
+            静态资源也找不到时就汇报404错误
+        修改静态资源访问前缀（默认无前缀,拦截所有）：spring.mvc.static-path-pattern=/res/**
+        改变静态资源访问路径：spring.resources.static-location=[classpath:/new/]
+    欢迎页： 页面或者模板
+        资源路径下 index.html
+            不可以配置静态资源请求前缀，否则静态资源欢迎页失效
+        请求名称： controller能处理index
+    图标：
+        资源路径下 Favicon.ico
+        不可以配置静态资源请求前缀，否则图标失效
+    原理：
+    MVC的springboot 自动配置类为WebMvcAutoConfiguration
+    生效规则
+        @Configuration(proxyBeanMethods = false) -- 轻量化
+        @ConditionalOnWebApplication(type = Type.SERVLET)
+        @ConditionalOnClass({ Servlet.class, DispatcherServlet.class, WebMvcConfigurer.class })
+        @ConditionalOnMissingBean(WebMvcConfigurationSupport.class)
+        @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE + 10)
+        @AutoConfigureAfter({ DispatcherServletAutoConfiguration.class, TaskExecutionAutoConfiguration.class,
+                ValidationAutoConfiguration.class })
+        public class WebMvcAutoConfiguration {
+            ...
+            // Defined as a nested config to ensure WebMvcConfigurer is not read when not
+            // on the classpath
+            @Configuration(proxyBeanMethods = false)
+            @Import(EnableWebMvcConfiguration.class)
+            @EnableConfigurationProperties({ WebMvcProperties.class, ResourceProperties.class })
+            @Order(0)
+            public static class WebMvcAutoConfigurationAdapter implements WebMvcConfigurer {
+                ...
+                public WebMvcAutoConfigurationAdapter(ResourceProperties resourceProperties, WebMvcProperties mvcProperties,
+                        ListableBeanFactory beanFactory, ObjectProvider<HttpMessageConverters> messageConvertersProvider,
+                        ObjectProvider<ResourceHandlerRegistrationCustomizer> resourceHandlerRegistrationCustomizerProvider,
+                        ObjectProvider<DispatcherServletPath> dispatcherServletPath) {
+                    this.resourceProperties = resourceProperties;
+                    this.mvcProperties = mvcProperties;
+                    this.beanFactory = beanFactory;
+                    this.messageConvertersProvider = messageConvertersProvider;
+                    this.resourceHandlerRegistrationCustomizer = resourceHandlerRegistrationCustomizerProvider.getIfAvailable();
+                    this.dispatcherServletPath = dispatcherServletPath;
+                }
+                ...
+            }
+            (类中只有一个有参构造时，所有的参数值都会从容器中寻找)
+
+            // 资源配置方法
+            @Override
+            public void addResourceHandlers(ResourceHandlerRegistry registry) {
+                ...
+                // spring.resources.add-mappings = false  禁用所有的静态资源。默认启用
+                // spring.resources.cache.period = 1800 配置静态页面浏览器缓存时间（秒）
+                Duration cachePeriod = this.resourceProperties.getCache().getPeriod();
+                // 注册访问规则
+                1)/webjars/**
+                2)类路径下其他默认 CLASSPATH_RESOURCE_LOCATIONS = { "classpath:/META-INF/resources/",
+                          			"classpath:/resources/", "classpath:/static/", "classpath:/public/" }
+            }
+
+            // 欢迎页 /**
+            @Bean
+            public WelcomePageHandlerMapping welcomePageHandlerMapping(
+                    ApplicationContext applicationContext,
+                    FormattingConversionService mvcConversionService,
+                    ResourceUrlProvider mvcResourceUrlProvider) {
+                ...
+            }
+            ...
+        }
+
+
+    2.请求参数处理
+        WebMvcAutoConfiguration
+        DispatcherServlet
+        请求映射原理
+        依次查询组件中各个mapper是否包含指定的请求
+            RequestMapperHandlerMapper
+            WelcomePageHandlerMapper
+            BeanNameUrlHandlerMapper
+            RouterFunctionHandlerMapper
+            SimpleUrlHandlerMapper
+    Rest原理（表单提交使用rest风格时）
+        @Bean
+    	@ConditionalOnMissingBean(HiddenHttpMethodFilter.class)
+    	@ConditionalOnProperty(prefix = "spring.webflux.hiddenmethod.filter", name = "enabled", matchIfMissing = false)
+    	public OrderedHiddenHttpMethodFilter hiddenHttpMethodFilter() {
+    		return new OrderedHiddenHttpMethodFilter();
+    	}
+        spring.mvc.hiddenmethod.filter.enabled: true 默认不开启
+        . 表单提交带上_method=DELETE
+        . 请求过来是被HiddenHttpMethodFilter拦截
+            请求正常且是POST请求
+                获取_method值
+                兼容请求类型： PUT DELETE PATCH
+                对原始请求的getMethod方法，封装为RequestWrapper对象返回，过滤器链放行后使用的就是封装后的请求对象
+        原生的rest风格不会经过上述装换封装
+        @GetMapping @PostMapping
+    请求映射原理
+        HttpServlet (doGet())
+            HttpServletBean
+                FrameworkServlet (doGet(processRequest() --> doService()))
+                    DispatcherServlet (doDispatch())  每个请求都会调用
+    MVC的所有请求的分析都从DispatcherServlet (doDispatch()) 开始
+        HandlerMapping --> 寻找适配的controller
+
+    3.请求参数类型
+        参数处理原理
+        HandlerMapping 找到能处理请求的Handler (Controller method)
+        为当前的Handler 找一个适配器 HandlerAdapter
+            RequestMappingHandlerAdapter 支持方法上标注@RequestMapping 处理适配器
+            HandlerFunctionHandlerAdapter  支持函数式编程 函数式请求处理适配器
+        真正执行目标方法的代码：
+        ServletInvocableHandlerMethod
+            public void invokeAndHandle(ServletWebRequest webRequest, ModelAndViewContainer mavContainer,
+                        Object... providedArgs) throws Exception {
+                    // 执行实际方法
+                    Object returnValue = invokeForRequest(webRequest, mavContainer, providedArgs);
+                    // 设置返回值
+                    setResponseStatus(webRequest);
+                    ...
+            }
+
+        HandlerMethodArgumentResolver
+            argumentResolvers 参数解析器
+                目标方法可以写多少种的参数类型，取决于参数解析器
+            supportsParameter 验证参数是否符合
+        returnValueHandler 返回值处理器
+        WebDataBinding web数据绑定器将请求参数的值绑定到指定的JavaBean对象中
+            converters 通过各种转换器将请求数据转换为指定的类型，再次封装到JavaBean中
+            可以自定义converter
+
+    4. 数据响应和内容协商
+
+    5. 拦截器 HandlerInterceptor
+        编写一个需要的拦截器
+        将新增的拦截器注册到容器中（实现WebMvcConfigure的addInterceptors(InterceptorRegister register)）
+        配置拦截规则
+    拦截器的执行原理：
+        根据当前请求，找到handlerExecutionChain(可以处理请求handler以及handler的所有拦截器链)
+        先顺序执行所有拦截器的preHandle方法
+            如果当前拦截器返回true，则接着执行下一个拦截器的preHandle方法
+            如果当前拦截器返回false，直接倒序执行已经执行的拦截器的afterHandle方法（triggerAfterCompletion()）
+        如果有一个拦截器返回false，直接跳出不执行目标方法
+        如果所有的拦截器都成功执行，则再执行请求方法
+        目标方法执行完成后，倒序执行所有拦截器的afterHandle方法
+        前面的步骤有任何的异常，都会触发triggerAfterCompletion()方法
+
+    6. Web原生组件注入（Servlet Filter Listener）
+        使用servletApi
+            @WebServlet("/servlet") + @ServletComponentScan
+            @WebFilter(urlPatterns={"/css/*","/js/*"})
+            @WebListener
+        使用registrationBean
+
+    7.定制化原理
+        定制化的常见方式
+        @EnableWebMvc + WebMvcConfigure 全面接管SpringMVC ，所有规则都需要自己配置
+
+    8. 数据库操作
+        spring-boot-starter-data-
+            连接池
+            jdbc
+            tx事务
+        为什么导入jdbc没有导入驱动的依赖？因为官方也不确定用户需要操作的数据库（Oracle mysql sqlServer ..）
+        DataSourceAutoConfiguration 数据源
+        spring.datasource
+            修改数据源的相关配置
+            没有配置数据库连接池时有配置默认的连接池 Hikari
+        DataSourceTransactionManagerAutoConfiguration 事务
+        JdbcTemplateAutoConfiguration JdbcTemplate模板，数据库操作
+        JndiDataSourceAutoConfiguration jndi
+        XADataSourceAutoConfiguration 分布式事务
+
+    mybatis配置规则
+        mybatis:
+            mapper-locations: classpath:mybatis/mapper/*.xml mapper映射文件
+            type-aliases-package: com.jay.entity 配置别名包扫描
+            (注意： 全局配置文件和yml configuration配置二选一)
+            configure-location: classpath:mybatis/mybatis-resource.xml 全局配置文件
+            configuration:
+                map-underscore-to-camel-case: true 开启驼峰命名规则（默认没有开启） mapUnderscoreToCamelCase=true
+        配置mapper接口扫描路径@MapperScan，或者配置@Mapper注解
+
+    mybatis-plus配置规则：
+        MybatisPlusAutoConfiguration 配置类 MybatisPlusProperties配置项绑定。mybatis-plus: xxx就是对 mybatis-plus的定制
+        SqlSessionFactory 自动配置好 （底层是容器中默认的数据源）
+        mapperLocations 自动配置好,默认值： classpath*:/mapper/**/*.xml
+        SelSessionTemplate 自动配置好
+        @Mapper标注的接口自动扫描,推荐使用@MapperScan
+
+    redis配置规则
+        RedisAutoConfiguration 配置类 spring.redis.xx
+        连接工厂是准备好的 LettuceConnectionConfiguration 和 JedisConnectionConfiguration
+        自动注入了RedisTemplate<Object, Object>
+        自动注入了StringRedisTemplate<String, String>
+        默认使用的是Lettuce连接，如果想要使用Jedis, 需要引入Jedis依赖并剔除Lettuce依赖包，就会使用Jedis连接
+
+    测试Junit5(springboot2.4以及以上版本)
+    不再兼容Junit4注解
+    不需要@RunnerWith启动容器
+    @Autowire 注入和@Transational 插入操作完成后自动回滚
+
+    9. 指标监控 Spring Boot Actuator
+        management是所有Actuator的起始配置
+    http://localhost:8080/actuator/health
+    http://localhost:8080/actuator/info
+    暴露所有监控信息为http  （jdk 默认监控 cmd 命令jconsole）
+    EndPoint 默认JMX方式暴露（除了shutDown）
+    常用端点：
+        health 健康状态
+        metric 运行指标
+        loggers 日志记录
+
+    profile
+    spring.profile.active = 组名
+    spring.profile.group.组名[0] = prod
+    spring.profile.group.组名[1] = test
+
+    外部化配置：从上往下，下面的properties配置会覆盖前面的
+        根目录
+        根目录下config包
+        jar所在
+        jar所在下config包
+
+    10.springboot原理
+        启动过程
+        创建SpringApplication
+            保存信息
+            判断当前应的类型： SERVLET
+            bootstraps: 初始化启动器 List<Bootstrap>
+                去spring.factories下寻找org.springframework.boot.Bootstrap
+            ApplicationContextInitializer  初始化器 List<ApplicationContextInitializer>
+                去spring.factories下寻找
+            ApplicationListener 应用监听器 List<ApplicationListener>
+                去spring.factories下寻找
+            寻找主启动类，第一个包含main方法的类
+
+        运行SpringApplication
+            StopWatch 记录应用启动时间
+            创建引导上下文 createBootstrapContext()
+                获取之前加载的所有Bootstrap,遍历执行initializer()来完成引导启动器上下文环境配置
+            让当前应用进入headless模式 java.awt.Headless
+            获取所有的RunListener 运行监听器 【为了方便所有的listener进行事件感知】
+                去spring.factories下寻找
+                遍历调用SpringApplicationRunListener starting()
+                相当于通知所有感兴趣系统启动过程的人，项目正在starting
+            保存命令行参数：ApplicationArguments
+            准备环境信息： prepareEnvironment
+                返回或者创建基础环境信息对象
+                配置环境信息对象
+                    读取所有配置源的配置属性值
+                绑定环境信息
+                监听器调用 environmentPrepared() , 通知所有监听器当前环境准备完成
+            创建IOC容器 createApplicationContext()
+                根据当前项目类型（Servlet）创建容器
+                    AnnotationConfigServletWebServerApplicationContext
+            准备ApplicationContext IOC容器的基本信息 prepareContext()
+                保存环境信息
+                IOC容器后置处理流程
+                应用初始化器 applyInitializers
+                    遍历所有的ApplicationContextInitializer 调用initialize方法来对IOC容器进行初始化的扩展工作
+                    遍历所有的listener 调用contextPrepared() EventPublishRunListener 通知所有的监听器IOC环境配置完成
+                所有的监听器调用contextLoaded 通知监听器调用contextLoaded方法
+            刷新IOC容器 refreshContext()
+                创建容器中的所有组件 refresh()
+            容器刷新完成后工作 afterRefresh()
+            所有监听器调用 listener.started() 通知监听器start
+            调用所有runners callRunners()
+                获取容器中的 ApplicationRunner
+                获取容器中的 CommandLineRunner
+                合并所有runner并按照@Order排序
+                遍历所有的runner 调用run()方法
+            如果以上操作出现异常，调用所有监听器的 listeners.failed()方法
+            调用所有监听器的running方法 通知所有的监听器调用 running()
+            running 出现异常 ，调用所有监听器的 listeners.failed()方法
+            启动完成，返回context
+
+        11. 启动时一些重要接口
+            ApplicationContextInitializer
+            ApplicationListener
+            SpringApplicationRunListener
+            以上三种需要在spring.factories中配置
+            ApplicationRunner
+            CommandLineRunner 应用启动加载的一次性工作

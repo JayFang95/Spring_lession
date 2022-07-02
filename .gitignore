@@ -1,0 +1,10 @@
+# Project exclude paths
+/admin-server/target/
+/redis6/target/
+/spring5/target/
+/spring-cloud2-alibaba/sping-cloud-eureka-server2/target/
+/spring-cloud2-alibaba/spring-cloud-eureka-client01/target/
+/spring-cloud2-alibaba/spring-cloud-eureka-server/target/
+/spring-cloud2-alibaba/spring-cloud-eureke-server3/target/
+/spring-cloud2-alibaba/target/
+/springboot2/target/

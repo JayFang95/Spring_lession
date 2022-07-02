@@ -1,0 +1,40 @@
+server:
+  port: 8763 # eureka默认端口
+spring:
+  application:
+    name: spring-cloud-eureka-server
+
+# 单机配置
+#eureka:
+#  client:
+#    fetch-registry: true # 是否拉取服务列表 (默认true)
+#    register-with-eureka: false # 是否注册自己 (默认true)
+#  server:
+#    eviction-interval-timer-in-ms: 30000 #清理无效节点的频率（毫秒） --- 定期清理
+#    enable-self-preservation: true # server自我保护机制 避免因为网络原因造成服务节点误清理， 生产环境建议打开（默认开启）
+#    renewal-percent-threshold: 0.85 # 85% 如果一个项目的client出现 15分组内85%的client都没有续约，那么可能是由于网络原因，
+#  instance:
+#    hostname: localhost #服务主机名
+#    instance-id: ${eureka.instance.hostname}:${spring.application.name}:${server.port}
+#    prefer-ip-address: true # 服务列表以IP形式展示
+#    lease-renewal-interval-in-seconds: 10 # 表示eureka client向注册中心发送和心跳的频率 （默认30）
+#    lease-expiration-duration-in-seconds: 20 # 表示eureka server至上一次收到client的心跳之后，等待下一次心跳的超时时间
+
+
+# 集群配置
+eureka:
+  client:
+    fetch-registry: true # 是否拉取服务列表 (默认true)
+    register-with-eureka: true # 是否注册自己 (默认true)
+    service-url: # 不写默认是8761
+      defaultZone: http://eureka01:8761/eureka,http://eureka02:8762/eureka #有多个时使用逗号分隔
+  server:
+    eviction-interval-timer-in-ms: 3000 #清理无效节点的频率（毫秒） --- 定期清理
+    enable-self-preservation: true # server自我保护机制 避免因为网络原因造成服务节点误清理， 生产环境建议打开（默认开启）
+    renewal-percent-threshold: 0.85 # 85% 如果一个项目的client出现 15分组内85%的client都没有续约，那么可能是由于网络原因，
+  instance:
+    hostname: eureka03 #服务主机名
+    instance-id: ${eureka.instance.hostname}:${spring.application.name}:${server.port}
+    prefer-ip-address: true # 服务列表以IP形式展示
+    lease-renewal-interval-in-seconds: 10 # 表示eureka client向注册中心发送和心跳的频率 （默认30）
+    lease-expiration-duration-in-seconds: 20 # 表示eureka server至上一次收到client的心跳之后，等待下一次心跳的超时时间

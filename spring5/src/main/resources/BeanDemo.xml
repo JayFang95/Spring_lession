@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context  http://www.springframework.org/schema/context/spring-context.xsd
+">
+
+<!--    引入context命名空间-->
+<!--    引入外部竖向文件-->
+    <context:property-placeholder location="classpath*:jdbc.properties"/>
+
+    <context:component-scan base-package="com.jay.demo.anno"/>
+    <!--    set方式注入属性-->
+<!--    <bean id="user" class="com.jay.pojo.User">-->
+<!--        <property name="id" value="1"/>-->
+<!--        <property name="name" value="詹三"/>-->
+<!--    </bean>-->
+
+    <!--    构造方式注入属性-->
+    <bean id="user" class="com.jay.pojo.User">
+        <constructor-arg name="id" value="2"/>
+        <constructor-arg name="name" value="李四"/>
+    </bean>
+
+    <bean id="student" class="com.jay.pojo.Student" init-method="initMethod">
+        <property name="name" value="测试赋值"/>
+    </bean>
+
+<!--    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">-->
+<!--        <property name="driverClassName" value="com.mysql.jdbc.Driver"/>-->
+<!--        <property name="url" value="jdbc:mysql://localhost:3306/demo"/>-->
+<!--        <property name="username" value="root"/>-->
+<!--        <property name="password" value="root"/>-->
+<!--    </bean>-->
+
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+        <property name="driverClassName" value="${pro.driverName}"/>
+        <property name="url" value="${pro.url}"/>
+        <property name="username" value="${pro.username}"/>
+        <property name="password" value="${pro.password}"/>
+    </bean>
+
+
+</beans>

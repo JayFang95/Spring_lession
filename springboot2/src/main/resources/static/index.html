@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HOME</title>
+</head>
+<body>
+    <h1>Hello World!</h1>
+
+<div>
+    <form action="/test" method="get">
+        <input type="submit" value="get方法"/>
+    </form>
+    <form action="/test" method="post">
+        <input type="submit" value="post方法"/>
+    </form>
+    <form action="/test" method="post">
+        <label>
+            <input name="_method"  value="put" hidden/>
+        </label>
+        <input type="submit" value="put方法"/>
+    </form>
+    <form action="/test" method="post">
+        <label>
+            <input name="_method"  value="delete" hidden/>
+        </label>
+        <input type="submit" value="delete方法"/>
+    </form>
+
+    <a href="/test/1/测试">测试path传参</a>
+    <a href="/to/test">测试页面跳转</a>
+    <a href="/to/redirect">测试页面跳转2</a>
+    <a href="/demo/interceptor/test">测试拦截</a>
+    <a href="/test/sql">测试sql</a>
+</div>
+</body>
+</html>

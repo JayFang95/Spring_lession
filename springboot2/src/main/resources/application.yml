@@ -1,0 +1,84 @@
+server:
+  port: 8888
+
+# 选择性开启，只有表单提交时才需要使用
+spring:
+  mvc:
+    hiddenmethod:
+      filter:
+        enabled: true
+
+  #  数据库配置
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/monitor?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf-8&useSSL=false&nullCatalogMeansCurrent=true
+    username: root
+    password: root
+    druid:
+      aop-patterns: com.jay.* #aop代理监控
+      filters: stat,wall,slf4j # 开启sql监控和防火墙过滤
+      filter:
+        stat:
+          slow-sql-millis: 3000 # 定义慢查询时间
+          log-slow-sql: true  #是否记录慢查询语句
+        wall:
+          enabled: true
+      stat-view-servlet:
+        enabled: true # 开启监控
+        login-username: admin
+        login-password: 123456
+        reset-enable: false # 重置按钮
+      web-stat-filter: # web监控
+        enabled: true
+        url-pattern: /*
+        exclusions: '*.js,*.gif,*.jpg,*.png,*.css,*.ico,/druid/*'
+  redis:
+    host: localhost
+    port: 6379
+    password: #账号：密码
+    database: 2
+    client-name: jedis
+  boot:
+    admin:
+      client:
+        url: http://localhost:7001
+        instance:
+          prefer-ip: true # 使用IP注册
+  application:
+    name: spring-boot2-demo
+    # 定义profile组
+  profiles:
+    group:
+      custom_group:
+        - prod
+        - custom
+    active: custom_group
+
+mybatis-plus:
+  type-aliases-package: com.jay.entity.**
+  mapper-locations: classpath*:/mapper/*.xml
+  global-config:
+    db-config:
+      id-type: auto #主键类型  0:"数据库ID自增", 1:"用户输入ID",2:"全局唯一ID (数字类型唯一ID)", 3:"全局唯一ID UUID";
+  configuration:
+    # 驼峰下划线转换
+    map-underscore-to-camel-case: true
+    # 使用全局的映射器启用或者禁用缓存
+    cache-enabled: true
+    # 配置,但JDBC类型为空时,某些驱动程序 要指定值,default:OTHER，插入空值时不需要指定类型
+    jdbc-type-for-null: 'null'
+management:
+  endpoints:
+    enabled-by-default: true # 开启所有默认端点
+    web:
+      exposure:
+        include: '*' # 以web模式暴露所有端点
+  endpoint: # 单endPoint 配置
+    health:
+      show-details: always
+
+# 自定义配置starter 属性配置
+jay:
+  hello:
+    prefix: test
+    suffix: hello

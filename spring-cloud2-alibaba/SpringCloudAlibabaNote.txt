@@ -1,0 +1,106 @@
+组件简介
+    服务注册中心 Eureka Nacos Consul
+    服务负载均衡 Ribbon Dubbo
+    服务远程调用 OpenFeign Dubbo
+    服务网关 Gateway Zuul
+    服务容错 Hystrix Sentinal
+    服务配置中心 configure-server Nacos
+    服务消息总线 Bus+Kafka
+    服务链路追踪 Sleuth Skipper
+    分布式事务管理 Seata
+
+版本控制
+    https://start.spring.io/actuator/info
+    https://github.com/alibaba/spring-cloud-alibaba
+    https://github.com/alibaba/spring-cloud-alibaba/wiki/%E7%89%88%E6%9C%AC%E8%AF%B4%E6%98%8E
+    spring-cloud-alibaba       spring-cloud       spring-boot
+
+
+组件学习
+一.服务注册中心
+Eureka
+    1.CAP原则
+        一致性 Consistency
+        可用性 Availability
+        分区容错性 Partition tolerance
+    面试： 为什么Zookeeper不适合作为注册中心？
+        Zookeeper 遵循CP原则
+        Eureka 注重AP原则
+
+    2.Eureka工作原理
+        问题：服务注册中心和服务之间是如何保持通信以及注册中心如何知晓服务的状态及时更新通信信息？
+            1）注册中心里面需要一个服务列表（容器）来保存服务的信息
+            2）服务应用下线或者宕机时，服务列表需要更新服务信息
+                主动下线 --> 通知注册中心，注册中心删除服务信息
+                被动下线 --> 注册中心通过监测发现
+        服务和注册中心之间需要建立一个长久的关系来维护两者之间的关系：
+            心跳机制-->每一次心跳都会发起一个请求
+        问题： 是否每次服务之间调用都要通过注册中心？
+            不是
+            服务应用会在本地缓存一份服务列表 --> 如何保存缓存服务列表的有效性？是否可以容忍服务列表的脏读问题？
+        问题： 如果一个时间段内 大量的服务都不和注册中心联系时怎么处理？
+            eureka-server 这种情况下不会删除任何一个不和自己联系的服务
+            宁可放过一万，也不错杀一个 --> 保证AP,高可用原则
+
+    配置： 可以分为 server client instance 三大类
+        eureka:
+          client:
+            service-url:
+                defaultZone: http://localhost:8761/eureka # 向指定地址注册
+            fetch-registry: true # 是否拉取服务列表 (默认true,关闭后不能获取服务列表)
+            registry-fetch-interval-seconds: 10 # 缓解服务列表脏读问题
+            register-with-eureka: true # 是否注册自己 (默认true)
+          server:
+            eviction-interval-timer-in-ms: 30000 #清理无效节点的频率（毫秒） --- 定期清理
+            enable-self-preservation: true # server自我保护机制 避免因为网络原因造成服务节点误清理， 生产环境建议打开（默认开启）
+            renewal-percent-threshold: 0.85 # 85% 如果一个项目的client出现 15分组内85%的client都没有续约，那么可能是由于网络原因，
+          instance:
+            hostname: localhost #服务主机名
+            instance-id: ${eureka.instance.hostname}:${spring.application.name}:${server.port}
+            prefer-ip-address: true # 服务列表以IP形式展示
+            lease-renewal-interval-in-seconds: 10 # 表示eureka client向注册中心发送和心跳的频率 （默认30）
+            lease-expiration-duration-in-seconds: 20 # 表示eureka server至上一次收到client的心跳之后，等待下一次心跳的超时时间
+
+    集群配置：
+        中心化集群 主从 哨兵
+        去中心化集群 更高可用
+        eureka会将数据进行广播和扩散，相互注册，互相守望
+        eureka:
+          client:
+            service-url: # 不写默认是8761
+              defaultZone: http://eureka01:8761/eureka #有多个时使用逗号分隔
+          instance:
+              hostname: eureka01 #服务主机名
+              instance-id: ${eureka.instance.hostname}:${spring.application.name}:${server.port}
+              prefer-ip-address: true # 服务列表以IP形式展示
+        eureka:
+          client:
+            service-url: # 不写默认是8761
+              defaultZone: http://eureka02:8762/eureka #有多个时使用逗号分隔
+          instance:
+              hostname: eureka02 #服务主机名
+              instance-id: ${eureka.instance.hostname}:${spring.application.name}:${server.port}
+              prefer-ip-address: true # 服务列表以IP形式展示
+
+    问题： 主从模式或者哨兵模式的集群是如何选取新的主机的？
+        分布式数据一致性协议 Paxos raft
+        （http://thesecretlivesofdata.com/raft/）
+            Zookeeper Paxos
+            Nacos raft
+            eureka 没有分布式数据一致性协议，每个节点都是相同的
+        节点的三个状态：追随者状态  候选状态   领导者状态
+        领导者选举  日志复制
+        问题：集群模式写如何写入数据？
+            当向集群主机写数据时，主机会先通知从机，当收到大部分节点的响应后才会真正开始写入数据，否则不能写入；
+            开始写入时，主节点会写记录日志，但是日志是未提交状态，要提交条目，主节点要先将数据复制到从节点，
+            直到收到大部分节点的写入成功，才会提交日志
+        问题： 当主节点宕机时如何重新选取主节点？
+            唤醒机制 150-300,在一个指定时间内，存活的节点谁先唤醒，谁就会开始发起投票争取当主节点；
+            如果出现多个节点同时唤醒且投票结果一致时，需要重新进行一次唤醒机制，进行新一轮的投票，依次重复下去直到选择了新的主节点
+
+    3. Eureka的源码分析
+        服务注册：
+            private final ConcurrentHashMap<String, Map<String, Lease<InstanceInfo>>> registry
+                    = new ConcurrentHashMap<String, Map<String, Lease<InstanceInfo>>>();
+            外部key: eureka服务实例名称
+            内部key: eureka服务应用instance-id
